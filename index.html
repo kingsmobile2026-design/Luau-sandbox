@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Roblox Buffer / bit32 Sandbox</title>
+<style>
+:root{color-scheme:dark;--bg:#0d1117;--panel:#161b22;--line:#30363d;--text:#e6edf3;--muted:#8b949e;--blue:#238636;--accent:#58a6ff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px system-ui,-apple-system,Segoe UI,sans-serif}
+header{padding:18px 16px;border-bottom:1px solid var(--line);background:#010409}h1{font-size:19px;margin:0 0 6px}header p{margin:0;color:var(--muted);line-height:1.5}
+main{max-width:1100px;margin:auto;padding:14px;display:grid;gap:12px}.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;min-width:0}
+h2{font-size:15px;margin:0 0 10px}label{display:block;color:var(--muted);font-size:12px;margin:9px 0 5px}
+textarea,input,select{width:100%;background:#0d1117;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:10px;font:13px ui-monospace,SFMono-Regular,Consolas,monospace}
+textarea{min-height:245px;resize:vertical;line-height:1.5}button{border:1px solid #3fb950;background:#238636;color:white;border-radius:8px;padding:10px 13px;font-weight:650;cursor:pointer}button.secondary{background:#21262d;border-color:var(--line);color:var(--text)}button:active{transform:translateY(1px)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.row>*{flex:1}.row button{flex:0 0 auto}.hint{font-size:12px;color:var(--muted);line-height:1.55}.status{white-space:pre-wrap;overflow-wrap:anywhere;background:#0d1117;border:1px solid var(--line);padding:11px;border-radius:8px;min-height:65px;font:12px ui-monospace,monospace}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+code{color:#a5d6ff} .warn{color:#f2cc60}.good{color:#3fb950}
+@media(max-width:700px){.grid{grid-template-columns:1fr}main{padding:9px}.panel{padding:11px}textarea{min-height:210px}}
+</style>
+</head>
+<body>
+<header><h1>Roblox Buffer / bit32 Sandbox</h1><p>난독화 코드 분석용 API 모킹 · 코드 실행은 격리된 브라우저 iframe에서만 수행 · 서버에서는 입력 코드를 실행하지 않습니다.</p></header>
+<main>
+<section class="panel">
+<h2>1. 코드 입력</h2>
+<div class="hint">지원 대상은 JavaScript로 작성된 분석용 코드입니다. Roblox Luau 전체 런타임이나 Luau 문법을 구현한 것은 아닙니다. API 호출은 아래의 <code>buffer</code>, <code>bit32</code> 모킹 객체를 통해 실행됩니다.</div>
+<label for="src">JavaScript 코드</label>
+<textarea id="src" spellcheck="false">const b = buffer.fromstring("Hello");
+console.log("length =", buffer.len(b));
+console.log("u8[0] =", buffer.readu8(b, 0));
+console.log("u32 example =", bit32.band(0xF0, 0x3C).toString(16));
+buffer.writeu16(b, 0, 0x4142);
+console.log("bytes =", Array.from(new Uint8Array(b)).join(", "));
+console.log("string =", buffer.tostring(b));</textarea>
+<div class="row" style="margin-top:9px"><button id="run">격리 실행</button><button class="secondary" id="sample">예제 복원</button><button class="secondary" id="clear">출력 지우기</button></div>
+<p class="hint warn">주의: 난독화 코드는 악성 동작을 포함할 수 있습니다. 실행은 별도 sandbox iframe에서 이뤄지며 네트워크 연결 권한을 주지 않지만, 브라우저/런타임 취약점까지 보장해서 막는 보안 경계는 아닙니다. 신뢰할 수 없는 코드는 주 분석 환경과 분리해 사용하세요.</p>
+</section>
+<section class="grid">
+<div class="panel"><h2>2. 실행 출력</h2><div id="output" class="status">아직 실행하지 않았습니다.</div></div>
+<div class="panel"><h2>3. 모킹 API 범위</h2>
+<div class="hint">
+<b>buffer</b><br>
+<code>create(size)</code>, <code>fromstring(str)</code>, <code>tostring(buf)</code>, <code>len(buf)</code>, <code>copy(dst,src,dstOffset,srcOffset,count)</code>, <code>fill(buf,value,offset,count)</code><br>
+정수: <code>readu8/readi8</code>, <code>readu16/readi16</code>, <code>readu32/readi32</code>, <code>writeu8/writei8</code>, <code>writeu16/writei16</code>, <code>writeu32/writei32</code><br>
+부동소수: <code>readf32/readf64</code>, <code>writef32/writef64</code> (little-endian)<br><br>
+<b>bit32</b><br>
+<code>band</code>, <code>bor</code>, <code>bxor</code>, <code>bnot</code>, <code>btest</code>, <code>lshift</code>, <code>rshift</code>, <code>arshift</code>, <code>lrotate</code>, <code>rrotate</code>, <code>extract</code>, <code>replace</code>, <code>countlz</code>, <code>countrz</code>
+</div>
+</div>
+</section>
+<section class="panel"><h2>4. API 동작 메모</h2><div class="hint">바이트 인덱스는 Roblox buffer와 마찬가지로 0부터 시작합니다. 다중 바이트 정수와 부동소수는 little-endian입니다. 범위를 벗어난 접근, 잘못된 버퍼, 유효하지 않은 비트 필드는 오류를 발생시킵니다. JavaScript의 Number 기반 비트 연산 결과는 32비트 정수로 정규화됩니다. Roblox 엔진과의 완전한 호환성을 보장하려면 대상 함수별로 공식 동작과 비교 테스트가 필요합니다.</div></section>
+</main>
+<script>
+const initial = document.getElementById('src').value;
+const output = document.getElementById('output');
+const runnerHTML = (userCode) => {
+  // iframe is sandboxed without allow-same-origin and has a restrictive CSP.
+  const encoded = JSON.stringify(userCode).replace(/</g, '\\u003c');
+  return `<!doctype html><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; connect-src 'none'; img-src 'none'; style-src 'none'; form-action 'none'; base-uri 'none'"><script>
+  (() => {
+    const send = (type, value) => parent.postMessage({channel:'buffer-bit32-sandbox',type,value:String(value)}, '*');
+    const logs=[];
+    const safeString = v => { try { return typeof v==='string'?v:JSON.stringify(v); } catch { return String(v); } };
+    const console = {log:(...a)=>send('log',a.map(safeString).join(' ')), info:(...a)=>send('log',a.map(safeString).join(' ')), warn:(...a)=>send('log','WARN: '+a.map(safeString).join(' ')), error:(...a)=>send('log','ERROR: '+a.map(safeString).join(' '))};
+    const assertBuffer=(b)=>{if(!(b instanceof ArrayBuffer)) throw new TypeError('Expected ArrayBuffer');};
+    const view=(b)=>new DataView(b);
+    const bounds=(b,o,n)=>{assertBuffer(b);if(!Number.isInteger(o)||!Number.isInteger(n)||o<0||n<0||o+n>b.byteLength)throw new RangeError('buffer access out of bounds');};
+    const buffer={
+      create(n){if(!Number.isInteger(n)||n<0||n>64*1024*1024)throw new RangeError('invalid buffer size (0..64 MiB)');return new ArrayBuffer(n)},
+      fromstring(s){if(typeof s!=='string')throw new TypeError('expected string');return new TextEncoder().encode(s).buffer},
+      tostring(b){assertBuffer(b);return new TextDecoder('utf-8',{fatal:false}).decode(new Uint8Array(b))},
+      len(b){assertBuffer(b);return b.byteLength},
+      copy(dst,src,doff=0,soff=0,count){assertBuffer(dst);assertBuffer(src);if(count===undefined)count=src.byteLength-soff;bounds(dst,doff,count);bounds(src,soff,count);new Uint8Array(dst).set(new Uint8Array(src,soff,count),doff)},
+      fill(b,v,off=0,count){assertBuffer(b);if(count===undefined)count=b.byteLength-off;bounds(b,off,count);if(!Number.isInteger(v))throw new TypeError('fill value must be integer');new Uint8Array(b,off,count).fill(v&255)},
+    };
+    const read=(name,size,signed=false,float=false)=>(b,o)=>{bounds(b,o,size);return float?view(b)[name](o,true):view(b)[name](o,!float? signed:undefined)};
+    const write=(name,size,signed=false,float=false)=>(b,o,v)=>{bounds(b,o,size);if(!Number.isFinite(v))throw new TypeError('value must be finite');view(b)[name](o,v,true)};
+    Object.assign(buffer,{
+      readu8:read('getUint8',1),readi8:read('getInt8',1,true),
+      readu16:read('getUint16',2),readi16:read('getInt16',2,true),
+      readu32:read('getUint32',4),readi32:read('getInt32',4,true),
+      readf32:read('getFloat32',4,false,true),readf64:read('getFloat64',8,false,true),
+      writeu8:write('setUint8',1),writei8:write('setInt8',1,true),
+      writeu16:write('setUint16',2),writei16:write('setInt16',2,true),
+      writeu32:write('setUint32',4),writei32:write('setInt32',4,true),
+      writef32:write('setFloat32',4,false,true),writef64:write('setFloat64',8,false,true)
+    });
+    const u32=n=>Number(n)>>>0;
+    const bit32={
+      band:(...a)=>a.reduce((x,y)=>x&u32(y),0xffffffff)>>>0,
+      bor:(...a)=>a.reduce((x,y)=>x|u32(y),0)>>>0,
+      bxor:(...a)=>a.reduce((x,y)=>x^u32(y),0)>>>0,
+      bnot:x=>(~u32(x))>>>0,
+      btest:(...a)=>a.reduce((x,y)=>x&u32(y),0xffffffff)!==0,
+      lshift:(x,d)=>{d=Number(d)|0;return d<0?(u32(x)>>>Math.min(-d,32))>>>0:(d>=32?0:(u32(x)<<d)>>>0)},
+      rshift:(x,d)=>{d=Number(d)|0;return d<0?(u32(x)<<Math.min(-d,31))>>>0:(d>=32?0:u32(x)>>>d)},
+      arshift:(x,d)=>{d=Number(d)|0;let n=u32(x)|0;return d<0?(n<<Math.min(-d,31))>>>0:(d>=32?(n<0?0xffffffff:0):(n>>d)>>>0)},
+      lrotate:(x,d)=>{d=(Number(d)|0)&31;x=u32(x);return ((x<<d)|(x>>>((32-d)&31)))>>>0},
+      rrotate:(x,d)=>{d=(Number(d)|0)&31;x=u32(x);return ((x>>>d)|(x<<((32-d)&31)))>>>0},
+      extract:(n,field,width=1)=>{field=Number(field)|0;width=Number(width)|0;if(field<0||width<1||field+width>32)throw new RangeError('invalid field/width');return (u32(n)>>>field) & (width===32?0xffffffff:(2**width-1))},
+      replace:(n,v,field,width=1)=>{field=Number(field)|0;width=Number(width)|0;if(field<0||width<1||field+width>32)throw new RangeError('invalid field/width');let mask=(width===32?0xffffffff:(2**width-1))>>>0;return ((u32(n)&~(mask<<field))|((u32(v)&mask)<<field))>>>0},
+      countlz:n=>Math.clz32(u32(n)),
+      countrz:n=>{n=u32(n);if(n===0)return 32;let c=0;while((n&1)===0){c++;n>>>=1}return c}
+    };
+    try {
+      const userCode = ${encoded};
+      const run = new Function('buffer','bit32','console','TextEncoder','TextDecoder', '"use strict";\\n'+userCode);
+      run(buffer,bit32,console,TextEncoder,TextDecoder);
+      send('done','Execution completed');
+    } catch(e) { send('error',(e&&e.name?e.name+': ':'')+(e&&e.message?e.message:String(e))); }
+  })();
+  <\/script>`;
+};
+window.addEventListener('message', e => {
+  if(e.data?.channel!=='buffer-bit32-sandbox') return;
+  if(e.data.type==='log') output.textContent += (output.textContent ? '\\n' : '') + e.data.value;
+  else if(e.data.type==='error') output.textContent += '\\n[ERROR] '+e.data.value;
+  else if(e.data.type==='done') output.textContent += '\\n[완료] '+e.data.value;
+});
+document.getElementById('run').onclick=()=>{
+  output.textContent='';
+  const frame=document.createElement('iframe');
+  frame.setAttribute('sandbox','allow-scripts');
+  frame.setAttribute('title','Isolated code runner');
+  frame.style.display='none';
+  frame.srcdoc=runnerHTML(document.getElementById('src').value);
+  document.body.appendChild(frame);
+  setTimeout(()=>frame.remove(),15000);
+};
+document.getElementById('sample').onclick=()=>document.getElementById('src').value=initial;
+document.getElementById('clear').onclick=()=>output.textContent='';
+</script>
+</body></html>
