@@ -1612,7 +1612,7 @@ local function startAuto(preview)
 	local ok, err = pcall(function()
 		-- WindUI window
 		window = UI:CreateWindow({
-			Title = "당구 통합 도우미",
+			Title = "WHITE'S SCRIPT",
 			Author = "포켓볼·3구·4구 자동 감지 · 예상 경로 · 자동 플레이",
 			Icon = "target",
 			Folder = "BilliardsSuite",
@@ -1813,7 +1813,7 @@ if not ok then state.UIError = tostring(err) warn("자동 플레이 창 오류: 
 		if not ok then state.Error = tostring(err) pause("자동 플레이 오류: " .. state.Error) end
 	end)
 	tick()
-	print("당구 통합 도우미 준비 완료: 포켓볼·3구·4구 자동 감지, 예상 경로 표시 켜짐, 자동 플레이 꺼짐")
+	print("White 's script loading end! 포켓볼·3구·4구 자동 감지, 예상 경로 표시 켜짐, 자동 플레이 꺼짐")
 	return state
 end
 local preview = startPreview()
